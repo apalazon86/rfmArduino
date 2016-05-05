@@ -194,7 +194,7 @@ void loop() {
     block57=block57+Serial.readString();
 
     //cNut
-    Serial.println("¿El producto contiene frutos con cacara? Y/N");
+    Serial.println("¿El producto contiene frutos con cascara? Y/N");
   
     //Wait for user input
     while (Serial.available()==0) {             
