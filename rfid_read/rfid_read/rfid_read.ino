@@ -1,64 +1,148 @@
-#include <SPI.h>//include the SPI bus library
-#include <MFRC522.h>//include the RFID reader library
+//Se incluyen librerias para manejar el bus SPI, el lector RFID y el modulo ethernet
+#include <SPI.h>
+#include <MFRC522.h>
+#include <Ethernet.h>
 
-#define SS_PIN 53  //slave select pin
-#define RST_PIN 5  //reset pin
-MFRC522 mfrc522(SS_PIN, RST_PIN);        // instatiate a MFRC522 reader object.
-MFRC522::MIFARE_Key key;//create a MIFARE_Key struct named 'key', which will hold the card information
+//Definimos los pines esclavo y de reset para la comunicacion SPI
+#define SS_PIN 53 
+#define RST_PIN 5  
 
+//Asignamos una direccion MAC e IP al Arduino
+byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
+IPAddress ip(192, 168, 0, 187);
+
+//Determinamos a que servidor se va a mandar la informacion
+char server[] = "rfmapp.cloudno.de";
+
+//Cliente ethernet
+EthernetClient client;
+
+//Sistema RFM 
+const String rfm="0001";
+
+//Ubicacion de la antena
+//01-->Frigorifico
+//02-->Despensa 1
+//03-->Despensa 2
+const String antenna="01";
+
+//JSON que se va a enviar via ethernet
+
+String data="";
+
+//Se instancia un objeto de lector MFRC522
+MFRC522 mfrc522(SS_PIN, RST_PIN); 
+//Creacion de struct key que almacenará la información de una tarjeta
+MFRC522::MIFARE_Key key;
+
+//Array donde se almacena que bloques van a ser leidos
 int blocks[6]={62,61,60,58,57,56};
 
+//String para almacenar la lectura de los bloques
 String strBlocks="";
+
+//Array de bytes donde se almacena la lectura de cada bloque
 byte readbackblock[18];
 
 void setup() {
   //Inicializacion del puerto serie
   Serial.begin(9600);
+  
   //Inicializacion bus SPI      
   SPI.begin();
+  
  //Inicializacion MFRC522 
   mfrc522.PCD_Init();
   //Se inicializan los 6 bytes  de key a su valor de fabrica 0xFF
   for (byte i = 0; i < 6; i++) {
     key.keyByte[i] = 0xFF;
   }
+
+  //Inicializacion modulo Ethernet
+  
+  //Se intenta configurar mediante DCHP
+  if (Ethernet.begin(mac) == 0) {
+    Serial.println("No se pudo configurar mediante DCHP");
+    //Si falla, se configura sin DCHP
+    Ethernet.begin(mac, ip);
+  }
+  //Se da un segundo al modulo para que se inicie
+  delay(1000);
+  Serial.println("Iniciando Ethernet Shield");
+  Serial.println("Esperando a leer productos");
 }
 
 void loop()
 {
+  //Se detiene la lectura anterior
+  mfrc522.PICC_HaltA();
+  mfrc522.PCD_StopCrypto1();
+  
+  //En espera de que se aproxime una tarjeta al lector     
+  //Si no hay una tarjeta presente, se vuelve al inicio del bucle
+  if ( ! mfrc522.PICC_IsNewCardPresent())
+    return;
+  
+  //En caso contrario se lee la tarjeta si no se pudo leer se vuelve al inicio del bucle
+  if ( ! mfrc522.PICC_ReadCardSerial())
+    return;
 
+    
+  Serial.println("Tarjeta Detectada");
+
+  //Se lee el contenido de los bloques 56, 57, 58, 60, 61 y 62
+  //Se inicializa el valor de la lectura de los bloques
   strBlocks="";
-  // Look for new cards (in case you wonder what PICC means: proximity integrated circuit card)
-	if ( ! mfrc522.PICC_IsNewCardPresent()) {//if PICC_IsNewCardPresent returns 1, a new card has been found and we continue
-		return;//if it did not find a new card is returns a '0' and we return to the start of the loop
-	}
-	// Select one of the cards
-	if ( ! mfrc522.PICC_ReadCardSerial()) {//if PICC_ReadCardSerial returns 1, the "uid" struct (see MFRC522.h lines 238-45)) contains the ID of the read card.
-		return;//if it returns a '0' something went wrong and we return to the start of the loop
-	}
- 
-  Serial.println("card selected");
-
   for (int i=0; i<6; i++){
-    readBlock(blocks[i], readbackblock);//read the block back
-    //print the block contents
+    //Se lee un bloque
+    readBlock(blocks[i], readbackblock);
     for (int j=0 ; j<16 ; j++){
+      //Se convierte de decimal a hexadecimal cada uno de sus elementos y se almacena
       strBlocks=strBlocks+String(readbackblock[j], HEX);
     }
   }
-  
-  Serial.println("Producto leido");
-  Serial.println(strBlocks);
- 
-  // Halt PICC
-  mfrc522.PICC_HaltA();
-  mfrc522.PCD_StopCrypto1();
-  delay(500);
+
+  //Si se han leido los 6 bloques al completo
+  if(strBlocks.length()==192){
+    Serial.println("Producto leido"); 
+    //Se compone el JSON que se va a postear
+    data="{\"rfm\":\""+rfm+"\",\"antenna\":\""+antenna+"\",\"arduino\":\""+strBlocks+"\"}";
+    Serial.println(data);
+    
+    //Se envia la lectura mediante el modulo ethernet
+
+    //Se cierra la conexion anterior
+    client.stop();
+  /*0
+    //Si se consigue conectar con el servidor
+    if (client.connect(server, 80)) {
+      Serial.println("conectado");
+      client.println("POST /products HTTP/1.1"); 
+      client.println("Host: rfmapp.cloudno.de"); 
+      client.println("Content-Type: application/json"); 
+      client.print("Content-Length: "); 
+      client.println(data.length()); 
+      client.println(); 
+      client.print(data);   
+      Serial.println("post realizado");
+    }
+    else {
+      //En caso contrario se informa de que la conexion ha fallado
+      Serial.println("conexion fallida");
+    }*/
+  //Se espera un poco a hacer la siguiente lectura
+  delay(1000);
+  }
+  else{
+    Serial.println("No se pudo leer el producto");
+  }
 }
 
-
-Funciones
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
+//Funciones///////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+//Funcion para leer un bloque, esta funcion se ha encontrado en los ejemplos del creador de la libreria MFRC522 https://github.com/miguelbalboa/rfid
 int readBlock(int blockNumber, byte arrayAddress[]) 
 {
   int largestModulo4Number=blockNumber/4*4;
@@ -73,7 +157,7 @@ int readBlock(int blockNumber, byte arrayAddress[])
   //MIFARE_Key *key is a pointer to the MIFARE_Key struct defined above, this struct needs to be defined for each block. New cards have all A/B= FF FF FF FF FF FF
   //Uid *uid is a pointer to the UID struct that contains the user ID of the card.
   if (status != MFRC522::STATUS_OK) {
-         Serial.print("PCD_Authenticate() failed (read): ");
+        // Serial.print("PCD_Authenticate() failed (read): ");
          return 3;//return "3" as error message
   }
   //it appears the authentication needs to be made before every block read/write within a specific sector.
@@ -88,5 +172,5 @@ int readBlock(int blockNumber, byte arrayAddress[])
           Serial.print("MIFARE_read() failed: ");
           return 4;//return "4" as error message
   }
-  //Serial.println("block was read");
+  //Serial.println("bloque leido");
 }
