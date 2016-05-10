@@ -41,6 +41,10 @@ int blocks[6]={62,61,60,58,57,56};
 //String para almacenar la lectura de los bloques
 String strBlocks="";
 
+//Variable para almacenar el codigo NUID
+String nuid="";
+
+
 //Array de bytes donde se almacena la lectura de cada bloque
 byte readbackblock[18];
 
@@ -89,7 +93,12 @@ void loop()
 
     
   Serial.println("Tarjeta Detectada");
-
+  //Se lee el codigo NUID
+  nuid="";
+   for (byte i = 0; i < 4; i++) {
+     nuid=nuid+String(mfrc522.uid.uidByte[i], HEX);
+   }
+  
   //Se lee el contenido de los bloques 56, 57, 58, 60, 61 y 62
   //Se inicializa el valor de la lectura de los bloques
   strBlocks="";
@@ -106,14 +115,14 @@ void loop()
   if(strBlocks.length()==192){
     Serial.println("Producto leido"); 
     //Se compone el JSON que se va a postear
-    data="{\"rfm\":\""+rfm+"\",\"antenna\":\""+antenna+"\",\"arduino\":\""+strBlocks+"\"}";
+    data="{\"rfm\":\""+rfm+"\",\"antenna\":\""+antenna+"\",\"UID\":\""+nuid+"\",\"arduino\":\""+strBlocks+"\"}";
     Serial.println(data);
     
     //Se envia la lectura mediante el modulo ethernet
 
     //Se cierra la conexion anterior
     client.stop();
-  /*0
+    
     //Si se consigue conectar con el servidor
     if (client.connect(server, 80)) {
       Serial.println("conectado");
@@ -129,7 +138,8 @@ void loop()
     else {
       //En caso contrario se informa de que la conexion ha fallado
       Serial.println("conexion fallida");
-    }*/
+    }
+  
   //Se espera un poco a hacer la siguiente lectura
   delay(1000);
   }
