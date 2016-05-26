@@ -28,7 +28,7 @@ String cAllergies;//Para saber si el producto tiene alergenos
 String fresh;//para saber si el producto es fresco
 
 byte blockcontent[16];//Informacion a guardar en un bloque
-
+unsigned long StartTime, CurrentTime, ElapsedTime;
 void setup() {
   //Inicializacion del puerto serie
   Serial.begin(9600);
@@ -44,6 +44,10 @@ void setup() {
 }
 
 void loop() {
+
+  //Se detiene la lectura anterior
+  mfrc522.PICC_HaltA();
+  mfrc522.PCD_StopCrypto1();
     
   //productName
   Serial.println("Introduzca el nombre del producto:");
@@ -330,7 +334,7 @@ void loop() {
   while(! mfrc522.PICC_ReadCardSerial()){
   
   }
-
+  StartTime=millis(); 
   Serial.println("Tarjeta Detectada");
   
   //Escritura de la tarjeta
@@ -355,7 +359,11 @@ void loop() {
 
   fillBlock(blockcontent,block56);
   writeBlock(56, blockcontent);
-  
+  CurrentTime=millis();
+  ElapsedTime=CurrentTime - StartTime;
+
+    Serial.println(ElapsedTime);
+    
 }
 
 //Funcion para añadir ceros a la izquierda

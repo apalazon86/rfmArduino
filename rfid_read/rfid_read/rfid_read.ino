@@ -18,13 +18,13 @@ char server[] = "rfmapp.cloudno.de";
 EthernetClient client;
 
 //Sistema RFM 
-const String rfm="0001";
+const String rfm="0000";
 
 //Ubicacion de la antena
 //01-->Frigorifico
 //02-->Despensa 1
 //03-->Despensa 2
-const String antenna="01";
+const String antenna="02";
 
 //JSON que se va a enviar via ethernet
 
@@ -47,6 +47,8 @@ String nuid="";
 
 //Array de bytes donde se almacena la lectura de cada bloque
 byte readbackblock[18];
+
+unsigned long StartTime, CurrentTime, ElapsedTime;
 
 void setup() {
   //Inicializacion del puerto serie
@@ -91,7 +93,9 @@ void loop()
   if ( ! mfrc522.PICC_ReadCardSerial())
     return;
 
-    
+  //Se almacena el instante en el que se empieza a leer la tarjeta
+  StartTime=millis();  
+  
   Serial.println("Tarjeta Detectada");
   //Se lee el codigo NUID
   nuid="";
@@ -113,7 +117,15 @@ void loop()
 
   //Si se han leido los 6 bloques al completo
   if(strBlocks.length()==192){
+
+    //Se mide cuanto ha durado la lectura
+    CurrentTime=millis();
+    ElapsedTime=CurrentTime - StartTime;
+
+    Serial.println(ElapsedTime);
+    
     Serial.println("Producto leido"); 
+    
     //Se compone el JSON que se va a postear
     data="{\"rfm\":\""+rfm+"\",\"antenna\":\""+antenna+"\",\"UID\":\""+nuid+"\",\"arduino\":\""+strBlocks+"\"}";
     Serial.println(data);
