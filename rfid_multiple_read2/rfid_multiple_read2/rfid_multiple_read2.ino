@@ -56,13 +56,13 @@ void loop() {
   if(StringContains(readNUIDs,NUID)==-1){
     
     //Se muestra la NUID por el monitor serie
-    Serial.println("Se ha leido la tarjeta con NUID: "+NUID);
+    //Serial.println("Se ha leido la tarjeta con NUID: "+NUID);
     NUID+="#";
     readNUIDs+=NUID;
     conta++;
-    Serial.println("Total de tarjetas diferentes leidas:"); 
-    Serial.println(conta);
-    Serial.println("Tiempo transcurrido desde el inicio de la lectura (ms)");
+    //Serial.println("Total de tarjetas diferentes leidas:"); 
+    //Serial.println(conta);
+   // Serial.println("Tiempo transcurrido desde el inicio de la lectura (ms)");
     Serial.println(millis());
   }
   
